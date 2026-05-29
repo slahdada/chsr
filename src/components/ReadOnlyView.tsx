@@ -3,28 +3,68 @@ import { Delivery } from '../types';
 import { DashboardStats } from './DashboardStats';
 import { Truck, X } from 'lucide-react';
 import { formatCurrency, cn } from '../utils';
+import { supabase } from '../supabase';
+
 
 export function ReadOnlyView() {
   const [deliveries, setDeliveries] = useState<Delivery[]>([]);
   const [error, setError] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [activePhoto, setActivePhoto] = useState<string | null>(null);
 
-
   useEffect(() => {
-    try {
-      const hash = window.location.hash.replace('#readonly=', '');
-      if (hash) {
-        const decoded = decodeURIComponent(escape(atob(hash)));
-        const parsed = JSON.parse(decoded);
-        setDeliveries(parsed);
-      } else {
+    const loadSharedData = async () => {
+      setLoading(true);
+      try {
+        const hash = window.location.hash;
+        if (hash.startsWith('#readonly=')) {
+          const rawHash = hash.replace('#readonly=', '');
+          const decoded = decodeURIComponent(escape(atob(rawHash)));
+          const parsed = JSON.parse(decoded);
+          setDeliveries(parsed);
+        } else if (hash.startsWith('#share=')) {
+          const shareId = hash.replace('#share=', '');
+          if (supabase) {
+            const { data, error: fetchError } = await supabase
+              .from('shares')
+              .select('data')
+              .eq('id', shareId)
+              .single();
+            
+            if (fetchError) throw fetchError;
+            if (data && data.data) {
+              setDeliveries(data.data);
+            } else {
+              setError(true);
+            }
+          } else {
+            console.error('Supabase client is not configured, cannot load share link.');
+            setError(true);
+          }
+        } else {
+          setError(true);
+        }
+      } catch (e) {
+        console.error('Failed to load shared deliveries:', e);
         setError(true);
+      } finally {
+        setLoading(false);
       }
-    } catch (e) {
-      console.error(e);
-      setError(true);
-    }
+    };
+
+    loadSharedData();
   }, []);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50 p-4 font-sans dir-rtl">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-12 h-12 rounded-full border-4 border-blue-100 border-t-blue-600 animate-spin"></div>
+          <p className="text-slate-500 font-medium text-sm animate-pulse">جاري تحميل البيانات...</p>
+        </div>
+      </div>
+    );
+  }
 
   if (error) {
     return (

@@ -7,6 +7,7 @@ import { DeliveryForm } from './components/DeliveryForm';
 import { ReadOnlyView } from './components/ReadOnlyView';
 import * as htmlToImage from 'html-to-image';
 import { cn, resizeBase64ForShare } from './utils';
+import { supabase } from './supabase';
 
 
 function useLocalStorage<T>(key: string, initialValue: T) {
@@ -154,30 +155,74 @@ export default function App() {
   const handleShareLink = async () => {
     try {
       showNotification('جاري تجهيز الرابط...');
-      
-      const compressedDeliveries = await Promise.all(
-        deliveries.map(async (delivery) => {
-          if (delivery.photo) {
-            try {
-              const smallPhoto = await resizeBase64ForShare(delivery.photo, 100, 100, 0.5);
-              return { ...delivery, photo: smallPhoto };
-            } catch (e) {
-              console.error('Failed to resize image for share:', e);
-              return delivery;
-            }
-          }
-          return delivery;
-        })
-      );
 
-      const encoded = btoa(unescape(encodeURIComponent(JSON.stringify(compressedDeliveries))));
-      const url = `${window.location.origin}${window.location.pathname}#readonly=${encoded}`;
-      
-      await navigator.clipboard.writeText(url);
-      showNotification('تم نسخ الرابط! يمكنك مشاركته الآن في واتساب.');
+      if (supabase) {
+        // Upload to Supabase
+        const { data, error } = await supabase
+          .from('shares')
+          .insert([{ data: deliveries }])
+          .select('id')
+          .single();
+
+        if (error) {
+          console.error('Supabase insert failed, falling back to local encoding:', error);
+          throw error;
+        }
+
+        const url = `${window.location.origin}${window.location.pathname}#share=${data.id}`;
+        await navigator.clipboard.writeText(url);
+        showNotification('تم نسخ رابط مشاركة احترافي!');
+      } else {
+        // Fallback to URL compression
+        const compressedDeliveries = await Promise.all(
+          deliveries.map(async (delivery) => {
+            if (delivery.photo) {
+              try {
+                const smallPhoto = await resizeBase64ForShare(delivery.photo, 100, 100, 0.5);
+                return { ...delivery, photo: smallPhoto };
+              } catch (e) {
+                console.error('Failed to resize image for share:', e);
+                return delivery;
+              }
+            }
+            return delivery;
+          })
+        );
+
+        const encoded = btoa(unescape(encodeURIComponent(JSON.stringify(compressedDeliveries))));
+        const url = `${window.location.origin}${window.location.pathname}#readonly=${encoded}`;
+        
+        await navigator.clipboard.writeText(url);
+        showNotification('تم نسخ الرابط! يمكنك مشاركته الآن في واتساب.');
+      }
     } catch (err) {
-      showNotification('حدث خطأ أثناء إنشاء الرابط', 'error');
-      console.error(err);
+      // If Supabase failed and we threw error, we try local compression fallback directly
+      try {
+        console.log('Trying fallback due to Supabase error...');
+        const compressedDeliveries = await Promise.all(
+          deliveries.map(async (delivery) => {
+            if (delivery.photo) {
+              try {
+                const smallPhoto = await resizeBase64ForShare(delivery.photo, 100, 100, 0.5);
+                return { ...delivery, photo: smallPhoto };
+              } catch (e) {
+                console.error('Failed to resize image for share:', e);
+                return delivery;
+              }
+            }
+            return delivery;
+          })
+        );
+
+        const encoded = btoa(unescape(encodeURIComponent(JSON.stringify(compressedDeliveries))));
+        const url = `${window.location.origin}${window.location.pathname}#readonly=${encoded}`;
+        
+        await navigator.clipboard.writeText(url);
+        showNotification('تم نسخ الرابط! (وضع الاحتياطي)');
+      } catch (fallbackErr) {
+        showNotification('حدث خطأ أثناء إنشاء الرابط', 'error');
+        console.error(fallbackErr);
+      }
     }
   };
 
