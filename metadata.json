@@ -1,0 +1,10 @@
+{
+  "name": "إدارة توصيل الأحذية",
+  "description": "تطبيق ويب متكامل لإدارة وتتبع توصيلات الأحذية للمناديب والحسابات",
+  "requestFramePermissions": [
+    "camera"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
