@@ -121,7 +121,21 @@ export default function App() {
       // Wait to allow React to apply full-height classes
       await new Promise(r => setTimeout(r, 300));
       
-      const dataUrl = await htmlToImage.toJpeg(appRef.current, { quality: 0.9, backgroundColor: '#f8fafc', style: { height: 'auto', overflow: 'visible' } });
+      const dataUrl = await htmlToImage.toJpeg(appRef.current, {
+        quality: 0.95,
+        backgroundColor: '#f8fafc',
+        style: {
+          height: 'auto',
+          overflow: 'visible'
+        },
+        filter: (node) => {
+          if (node instanceof HTMLElement && node.hasAttribute('data-html2canvas-ignore')) {
+            return false;
+          }
+          return true;
+        },
+        cacheBust: true,
+      });
       
       const link = document.createElement('a');
       link.download = `تقارير_التوصيل_${new Date().toLocaleDateString('ar-DZ')}.jpg`;

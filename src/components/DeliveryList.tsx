@@ -43,7 +43,8 @@ export function DeliveryList({ deliveries, onEdit, onDelete }: DeliveryListProps
             <th className="px-4 py-2.5 font-semibold text-[#475569] text-[0.75rem] hidden sm:table-cell">استلام</th>
             <th className="px-4 py-2.5 font-semibold text-[#475569] text-[0.75rem] hidden sm:table-cell">تسليم</th>
             <th className="px-4 py-2.5 font-semibold text-[#475569] text-[0.75rem]">المتبقي</th>
-            <th className="px-4 py-2.5 font-semibold text-[#475569] text-[0.75rem] text-left">عمليات</th>
+            <th className="px-4 py-2.5 font-semibold text-[#475569] text-[0.75rem] text-left" data-html2canvas-ignore>عمليات</th>
+
           </tr>
         </thead>
         <tbody>
@@ -86,7 +87,8 @@ export function DeliveryList({ deliveries, onEdit, onDelete }: DeliveryListProps
                     <span className="text-amber-500">{formatCurrency(remaining)}</span>
                   )}
                 </td>
-                <td className="px-4 py-2 align-middle text-left whitespace-nowrap">
+                <td className="px-4 py-2 align-middle text-left whitespace-nowrap" data-html2canvas-ignore>
+
                   <div className="flex justify-end gap-2">
                     <button onClick={() => onEdit(delivery)} className="text-blue-600 hover:text-blue-800 bg-transparent shrink-0 text-sm font-semibold" title="تعديل">
                       تعديل
