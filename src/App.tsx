@@ -6,7 +6,8 @@ import { DeliveryList } from './components/DeliveryList';
 import { DeliveryForm } from './components/DeliveryForm';
 import { ReadOnlyView } from './components/ReadOnlyView';
 import * as htmlToImage from 'html-to-image';
-import { cn } from './utils';
+import { cn, resizeBase64ForShare } from './utils';
+
 
 function useLocalStorage<T>(key: string, initialValue: T) {
   const [storedValue, setStoredValue] = useState<T>(() => {
@@ -136,14 +137,29 @@ export default function App() {
     }
   };
 
-  const handleShareLink = () => {
+  const handleShareLink = async () => {
     try {
-      // Create a smaller version without photos for the URL to avoid length limits
-      const lightDeliveries = deliveries.map(({ photo, ...rest }) => rest);
-      const encoded = btoa(unescape(encodeURIComponent(JSON.stringify(lightDeliveries))));
+      showNotification('جاري تجهيز الرابط...');
+      
+      const compressedDeliveries = await Promise.all(
+        deliveries.map(async (delivery) => {
+          if (delivery.photo) {
+            try {
+              const smallPhoto = await resizeBase64ForShare(delivery.photo, 100, 100, 0.5);
+              return { ...delivery, photo: smallPhoto };
+            } catch (e) {
+              console.error('Failed to resize image for share:', e);
+              return delivery;
+            }
+          }
+          return delivery;
+        })
+      );
+
+      const encoded = btoa(unescape(encodeURIComponent(JSON.stringify(compressedDeliveries))));
       const url = `${window.location.origin}${window.location.pathname}#readonly=${encoded}`;
       
-      navigator.clipboard.writeText(url);
+      await navigator.clipboard.writeText(url);
       showNotification('تم نسخ الرابط! يمكنك مشاركته الآن في واتساب.');
     } catch (err) {
       showNotification('حدث خطأ أثناء إنشاء الرابط', 'error');

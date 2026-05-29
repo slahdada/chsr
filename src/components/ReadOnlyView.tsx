@@ -1,12 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import { Delivery } from '../types';
 import { DashboardStats } from './DashboardStats';
-import { Truck } from 'lucide-react';
+import { Truck, X } from 'lucide-react';
 import { formatCurrency, cn } from '../utils';
 
 export function ReadOnlyView() {
   const [deliveries, setDeliveries] = useState<Delivery[]>([]);
   const [error, setError] = useState(false);
+  const [activePhoto, setActivePhoto] = useState<string | null>(null);
+
 
   useEffect(() => {
     try {
@@ -76,6 +78,15 @@ export function ReadOnlyView() {
               return (
                 <div key={delivery.id} className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100">
                   <div className="flex gap-4">
+                    {delivery.photo && (
+                      <div 
+                        onClick={() => setActivePhoto(delivery.photo)}
+                        className="w-16 h-16 rounded-xl bg-slate-100 overflow-hidden shrink-0 border border-slate-200 cursor-pointer hover:opacity-90 transition-opacity"
+                        title="عرض الصورة كاملة"
+                      >
+                        <img src={delivery.photo} alt="حذاء" className="w-full h-full object-cover" />
+                      </div>
+                    )}
                     <div className="flex-1 min-w-0">
                       <div className="flex items-start mb-3">
                         {getStatusBadge(delivery.status)}
@@ -119,6 +130,30 @@ export function ReadOnlyView() {
           )}
         </div>
       </main>
+
+      {/* Image Preview Modal */}
+      {activePhoto && (
+        <div 
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/80 backdrop-blur-md p-4 animate-in fade-in duration-200"
+          onClick={() => setActivePhoto(null)}
+        >
+          <div className="relative max-w-3xl max-h-[85vh] overflow-hidden rounded-2xl bg-white/5 shadow-2xl p-1 animate-in zoom-in-95 duration-200">
+            <img 
+              src={activePhoto} 
+              alt="معاينة الحذاء" 
+              className="max-w-full max-h-[80vh] object-contain rounded-xl select-none"
+              onClick={(e) => e.stopPropagation()}
+            />
+            <button 
+              onClick={() => setActivePhoto(null)}
+              className="absolute top-4 right-4 bg-slate-900/60 hover:bg-slate-900/80 text-white rounded-full p-2.5 transition-colors shadow-lg cursor-pointer"
+              title="إغلاق"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
