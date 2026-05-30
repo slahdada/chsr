@@ -173,21 +173,13 @@ export default function App() {
         await navigator.clipboard.writeText(url);
         showNotification('تم نسخ رابط مشاركة احترافي!');
       } else {
-        // Fallback to URL compression
-        const compressedDeliveries = await Promise.all(
-          deliveries.map(async (delivery) => {
-            if (delivery.photo) {
-              try {
-                const smallPhoto = await resizeBase64ForShare(delivery.photo, 100, 100, 0.5);
-                return { ...delivery, photo: smallPhoto };
-              } catch (e) {
-                console.error('Failed to resize image for share:', e);
-                return delivery;
-              }
-            }
-            return delivery;
-          })
-        );
+        // Fallback to URL compression (strips base64 photos to prevent WhatsApp mobile length limits)
+        const compressedDeliveries = deliveries.map((delivery) => {
+          const photoVal = delivery.photo && (delivery.photo.startsWith('http://') || delivery.photo.startsWith('https://'))
+            ? delivery.photo
+            : null;
+          return { ...delivery, photo: photoVal };
+        });
 
         const encoded = btoa(unescape(encodeURIComponent(JSON.stringify(compressedDeliveries))));
         const url = `${window.location.origin}${window.location.pathname}#readonly=${encoded}`;
@@ -196,23 +188,15 @@ export default function App() {
         showNotification('تم نسخ الرابط! يمكنك مشاركته الآن في واتساب.');
       }
     } catch (err) {
-      // If Supabase failed and we threw error, we try local compression fallback directly
+      // If Supabase failed and we threw error, we try local fallback directly
       try {
         console.log('Trying fallback due to Supabase error...');
-        const compressedDeliveries = await Promise.all(
-          deliveries.map(async (delivery) => {
-            if (delivery.photo) {
-              try {
-                const smallPhoto = await resizeBase64ForShare(delivery.photo, 100, 100, 0.5);
-                return { ...delivery, photo: smallPhoto };
-              } catch (e) {
-                console.error('Failed to resize image for share:', e);
-                return delivery;
-              }
-            }
-            return delivery;
-          })
-        );
+        const compressedDeliveries = deliveries.map((delivery) => {
+          const photoVal = delivery.photo && (delivery.photo.startsWith('http://') || delivery.photo.startsWith('https://'))
+            ? delivery.photo
+            : null;
+          return { ...delivery, photo: photoVal };
+        });
 
         const encoded = btoa(unescape(encodeURIComponent(JSON.stringify(compressedDeliveries))));
         const url = `${window.location.origin}${window.location.pathname}#readonly=${encoded}`;
