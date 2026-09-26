@@ -1,13 +1,12 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { Truck, Plus, Share2, Search, Link as LinkIcon, AlertCircle, Camera, Trash2 } from 'lucide-react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import { Plus, Share2, Link as LinkIcon, Trash2 } from 'lucide-react';
 import { Delivery, DeliveryStatus } from './types';
 import { DashboardStats } from './components/DashboardStats';
 import { DeliveryList } from './components/DeliveryList';
 import { DeliveryForm } from './components/DeliveryForm';
 import { ReadOnlyView } from './components/ReadOnlyView';
-import * as htmlToImage from 'html-to-image';
-import { cn, resizeBase64ForShare } from './utils';
-import { supabase } from './supabase';
+import { cn } from './utils';
+import { getSupabaseClient } from './supabase';
 
 
 function useLocalStorage<T>(key: string, initialValue: T) {
@@ -20,16 +19,43 @@ function useLocalStorage<T>(key: string, initialValue: T) {
       return initialValue;
     }
   });
+  const storedValueRef = useRef(storedValue);
+  const persistTimeoutRef = useRef<number | null>(null);
 
-  const setValue = (value: T | ((val: T) => T)) => {
+  const persistStoredValue = useCallback(() => {
     try {
-      const valueToStore = value instanceof Function ? value(storedValue) : value;
-      setStoredValue(valueToStore);
-      window.localStorage.setItem(key, JSON.stringify(valueToStore));
+      window.localStorage.setItem(key, JSON.stringify(storedValueRef.current));
     } catch (error) {
       console.warn(error);
     }
-  };
+  }, [key]);
+
+  const flushPendingWrite = useCallback(() => {
+    if (persistTimeoutRef.current === null) return;
+    window.clearTimeout(persistTimeoutRef.current);
+    persistTimeoutRef.current = null;
+    persistStoredValue();
+  }, [persistStoredValue]);
+
+  useEffect(() => {
+    window.addEventListener('pagehide', flushPendingWrite);
+    return () => window.removeEventListener('pagehide', flushPendingWrite);
+  }, [flushPendingWrite]);
+
+  const setValue = useCallback((value: T | ((val: T) => T)) => {
+    const valueToStore = value instanceof Function
+      ? value(storedValueRef.current)
+      : value;
+    storedValueRef.current = valueToStore;
+    setStoredValue(valueToStore);
+    if (persistTimeoutRef.current !== null) {
+      window.clearTimeout(persistTimeoutRef.current);
+    }
+    persistTimeoutRef.current = window.setTimeout(() => {
+      persistTimeoutRef.current = null;
+      persistStoredValue();
+    }, 0);
+  }, [persistStoredValue]);
 
   return [storedValue, setValue] as const;
 }
@@ -60,10 +86,10 @@ export default function App() {
 
   const appRef = useRef<HTMLDivElement>(null);
 
-  const showNotification = (message: string, type: 'success' | 'error' = 'success') => {
+  const showNotification = useCallback((message: string, type: 'success' | 'error' = 'success') => {
     setNotification({ message, type });
     setTimeout(() => setNotification(null), 3000);
-  };
+  }, []);
 
   const handleSaveDelivery = (data: Omit<Delivery, 'id' | 'createdAt'>) => {
     if (editingDelivery) {
@@ -82,12 +108,12 @@ export default function App() {
     setEditingDelivery(null);
   };
 
-  const handleDeleteDelivery = (id: string) => {
+  const handleDeleteDelivery = useCallback((id: string) => {
     setDeliveries(prev => prev.filter(d => d.id !== id));
     showNotification('تم حذف التوصيلة');
-  };
+  }, [setDeliveries, showNotification]);
 
-  const requestDelete = (id: string) => {
+  const requestDelete = useCallback((id: string) => {
     setConfirmDialog({
       isOpen: true,
       message: 'هل أنت متأكد من حذف هذه التوصيلة؟ لا يمكن التراجع بعد ذلك.',
@@ -96,7 +122,12 @@ export default function App() {
         setConfirmDialog(prev => ({...prev, isOpen: false}));
       }
     });
-  };
+  }, [handleDeleteDelivery]);
+
+  const handleEditDelivery = useCallback((delivery: Delivery) => {
+    setEditingDelivery(delivery);
+    setIsFormOpen(true);
+  }, []);
 
   const requestClearAll = () => {
     if (deliveries.length === 0) {
@@ -119,10 +150,11 @@ export default function App() {
     try {
       setIsExporting(true);
       showNotification('جاري تجهيز الصورة...');
+      const { toJpeg } = await import('html-to-image');
       // Wait to allow React to apply full-height classes
       await new Promise(r => setTimeout(r, 300));
       
-      const dataUrl = await htmlToImage.toJpeg(appRef.current, {
+      const dataUrl = await toJpeg(appRef.current, {
         quality: 0.95,
         backgroundColor: '#f8fafc',
         style: {
@@ -156,6 +188,7 @@ export default function App() {
     try {
       showNotification('جاري تجهيز الرابط...');
 
+      const supabase = await getSupabaseClient();
       if (supabase) {
         // Upload to Supabase
         const { data, error } = await supabase
@@ -298,7 +331,7 @@ export default function App() {
         <div className={cn("bg-white border border-slate-200 rounded-xl flex flex-col", isExporting ? "overflow-visible h-auto" : "flex-1 overflow-hidden min-h-0")}>
            <DeliveryList 
              deliveries={filteredDeliveries} 
-             onEdit={(d) => { setEditingDelivery(d); setIsFormOpen(true); }}
+             onEdit={handleEditDelivery}
              onDelete={requestDelete}
            />
         </div>
