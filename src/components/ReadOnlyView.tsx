@@ -3,7 +3,7 @@ import { Delivery } from '../types';
 import { DashboardStats } from './DashboardStats';
 import { Truck, X } from 'lucide-react';
 import { formatCurrency, cn } from '../utils';
-import { supabase } from '../supabase';
+import { getSupabaseClient } from '../supabase';
 
 
 export function ReadOnlyView() {
@@ -24,6 +24,7 @@ export function ReadOnlyView() {
           setDeliveries(parsed);
         } else if (hash.startsWith('#share=')) {
           const shareId = hash.replace('#share=', '');
+          const supabase = await getSupabaseClient();
           if (supabase) {
             const { data, error: fetchError } = await supabase
               .from('shares')

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { memo } from 'react';
 import { Delivery } from '../types';
 import { formatCurrency } from '../utils';
 
@@ -6,18 +6,35 @@ interface DashboardStatsProps {
   deliveries: Delivery[];
 }
 
-export function DashboardStats({ deliveries }: DashboardStatsProps) {
+export const DashboardStats = memo(function DashboardStats({ deliveries }: DashboardStatsProps) {
+  const {
+    deliveredShoes,
+    toDeliverShoes,
+    canceledShoes,
+    totalDeliveredShoePrice,
+    totalDeliveryFees,
+    totalReceivedFees,
+  } = deliveries.reduce((totals, delivery) => {
+    if (delivery.status === 'delivered') {
+      totals.deliveredShoes += 1;
+      totals.totalDeliveredShoePrice += delivery.totalPrice || 0;
+    } else if (delivery.status === 'to_deliver') {
+      totals.toDeliverShoes += 1;
+    } else if (delivery.status === 'canceled') {
+      totals.canceledShoes += 1;
+    }
+    totals.totalDeliveryFees += delivery.deliveryFee || 0;
+    totals.totalReceivedFees += delivery.received || 0;
+    return totals;
+  }, {
+    deliveredShoes: 0,
+    toDeliverShoes: 0,
+    canceledShoes: 0,
+    totalDeliveredShoePrice: 0,
+    totalDeliveryFees: 0,
+    totalReceivedFees: 0,
+  });
   const totalShoes = deliveries.length;
-  const deliveredShoes = deliveries.filter(d => d.status === 'delivered').length;
-  const toDeliverShoes = deliveries.filter(d => d.status === 'to_deliver').length;
-  const canceledShoes = deliveries.filter(d => d.status === 'canceled').length;
-
-  const totalDeliveredShoePrice = deliveries
-    .filter(d => d.status === 'delivered')
-    .reduce((acc, curr) => acc + (curr.totalPrice || 0), 0);
-  
-  const totalDeliveryFees = deliveries.reduce((acc, curr) => acc + (curr.deliveryFee || 0), 0);
-  const totalReceivedFees = deliveries.reduce((acc, curr) => acc + (curr.received || 0), 0);
   
   const totalRemaining = totalDeliveredShoePrice - totalReceivedFees - totalDeliveryFees;
 
@@ -69,5 +86,4 @@ export function DashboardStats({ deliveries }: DashboardStatsProps) {
       />
     </div>
   );
-}
-
+});

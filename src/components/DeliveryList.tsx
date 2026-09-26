@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { memo, useState } from 'react';
 import { Pencil, Trash2, X } from 'lucide-react';
 import { Delivery } from '../types';
 import { formatCurrency } from '../utils';
@@ -9,7 +9,7 @@ interface DeliveryListProps {
   onDelete: (id: string) => void;
 }
 
-export function DeliveryList({ deliveries, onEdit, onDelete }: DeliveryListProps) {
+export const DeliveryList = memo(function DeliveryList({ deliveries, onEdit, onDelete }: DeliveryListProps) {
   const [activePhoto, setActivePhoto] = useState<string | null>(null);
 
   if (deliveries.length === 0) {
@@ -129,4 +129,4 @@ export function DeliveryList({ deliveries, onEdit, onDelete }: DeliveryListProps
       )}
     </div>
   );
-}
+});
